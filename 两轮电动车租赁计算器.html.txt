@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>电动车租金计算器</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Arial", sans-serif; }
+        body { padding: 20px; background: #f5f5f5; }
+        .container { max-width: 500px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #333; margin-bottom: 25px; font-size: 20px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; color: #666; font-size: 14px; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px; }
+        button { width: 100%; padding: 14px; background: #2d7dff; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        button:hover { background: #1a68e0; }
+        .result { margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px; display: none; }
+        .result h3 { color: #333; margin-bottom: 15px; font-size: 18px; }
+        .info-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 15px; }
+        .info-item span:first-child { color: #666; }
+        .info-item span:last-child { color: #333; font-weight: 500; }
+        .table-container { margin-top: 25px; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 12px; text-align: center; border: 1px solid #ddd; }
+        th { background: #f2f2f2; color: #333; }
+        tr:nth-child(even) { background: #f9f9fa; }
+        .note { margin-top: 15px; font-size: 12px; color: #999; line-height: 1.5; text-align: center; }
+        .highlight { font-weight: 600; color: #2d7dff; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>电动车租金计算器</h2>
+        
+        <div class="form-group">
+            <label for="carPrice">车辆价格（元）</label>
+            <input type="number" id="carPrice" placeholder="请输入车辆价格" min="1" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="leaseTerm">租期（月）</label>
+            <select id="leaseTerm" required>
+                <option value="3">3个月</option>
+                <option value="6">6个月</option>
+                <option value="9">9个月</option>
+                <option value="12">12个月</option>
+                <option value="24">24个月</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="startDate">起租日期</label>
+            <input type="date" id="startDate" required>
+        </div>
+        
+        <button onclick="calculate()">计算租金方案</button>
+        
+        <div class="result" id="result">
+            <h3>租金方案详情</h3>
+            <div class="info-item">
+                <span>车辆价格：</span>
+                <span id="showCarPrice">0元</span>
+            </div>
+            <div class="info-item">
+                <span>保证金（25%）：</span>
+                <span id="deposit">0元</span>
+            </div>
+            <div class="info-item">
+                <span>租期：</span>
+                <span id="showLeaseTerm">0个月</span>
+            </div>
+            <div class="info-item highlight">
+                <span>每月应付总额：</span>
+                <span id="monthlyTotal">0元</span>
+            </div>
+            
+            <div class="table-container" style="margin-top: 20px;">
+                <h3>租期计划表</h3>
+                <table id="leaseTable">
+                    <thead>
+                        <tr>
+                            <th>期数</th>
+                            <th>应付日期</th>
+                            <th>应付总额</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <!-- 计划表内容将动态生成 -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="note">
+                注：1. 保证金租期内无逾期全额退还；2. 提前还款需额外支付1个月应付总额；3. 所有金额已四舍五入
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 计算核心逻辑
+        function calculate() {
+            const carPrice = Number(document.getElementById('carPrice').value);
+            const leaseTerm = Number(document.getElementById('leaseTerm').value);
+            const startDate = new Date(document.getElementById('startDate').value);
+            
+            // 验证输入
+            if (!carPrice || !startDate.getTime()) {
+                alert('请完善车辆价格和起租日期');
+                return;
+            }
+            
+            // 基础参数计算（隐藏本金、租金明细，仅用于计算总额）
+            const deposit = Math.round(carPrice * 0.25);
+            const monthlyPrincipal = Math.round(carPrice / leaseTerm);
+            const gpsMonthly = Math.round(170 / leaseTerm);
+            
+            // 租金费率配置
+            let rate;
+            if (leaseTerm === 3 || leaseTerm === 6) rate = 0.06;
+            else if (leaseTerm === 9 || leaseTerm === 12) rate = 0.05;
+            else if (leaseTerm === 24) rate = 0.04;
+            const monthlyRateFee = Math.round(carPrice * rate);
+            
+            // 每月应付总额（含本金、租金、GPS费，不拆分展示）
+            const monthlyTotal = monthlyPrincipal + monthlyRateFee + gpsMonthly;
+            
+            // 填充基础信息
+            document.getElementById('showCarPrice').textContent = carPrice + '元';
+            document.getElementById('deposit').textContent = deposit + '元';
+            document.getElementById('showLeaseTerm').textContent = leaseTerm + '个月';
+            document.getElementById('monthlyTotal').textContent = monthlyTotal + '元';
+            
+            // 生成租期计划表（仅显示期数、日期、总额）
+            const tableBody = document.getElementById('tableBody');
+            tableBody.innerHTML = '';
+            
+            for (let i = 1; i <= leaseTerm; i++) {
+                // 计算每期应付日期（每月同一日）
+                const payDate = new Date(startDate);
+                payDate.setMonth(payDate.getMonth() + i);
+                const formatDate = `${payDate.getFullYear()}-${(payDate.getMonth() + 1).toString().padStart(2, '0')}-${payDate.getDate().toString().padStart(2, '0')}`;
+                
+                // 创建表格行
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${i}期</td>
+                    <td>${formatDate}</td>
+                    <td>${monthlyTotal}元</td>
+                `;
+                tableBody.appendChild(row);
+            }
+            
+            // 显示结果
+            document.getElementById('result').style.display = 'block';
+            // 滚动到结果区域
+            document.getElementById('result').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // 初始化起租日期为今日
+        window.onload = function() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('startDate').value = today;
+        };
+    </script>
+</body>
+</html>
